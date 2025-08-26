@@ -1,0 +1,54 @@
+/* Estilos para todos os tipos de cards */
+.checkin-card, .summary-card, .analytics-card {
+    background-color: var(--color-bg-content);
+    border-radius: var(--border-radius); padding: 24px;
+    box-shadow: var(--shadow-soft);
+    border-left: 5px solid;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    display: flex; flex-direction: column;
+}
+.checkin-card:hover, .summary-card:hover, .analytics-card:hover {
+    transform: translateY(-4px); box-shadow: var(--shadow-medium);
+}
+.card-header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 15px; color: var(--color-text-secondary); font-size: 0.9rem;
+}
+.card-user { display: flex; align-items: center; gap: 8px; }
+.card-user strong { font-family: var(--font-display); color: var(--color-text-primary); font-size: 1.1rem; }
+.mood-icon { font-size: 1.2rem; }
+.card-content { flex-grow: 1; }
+.card-content p { margin: 12px 0; }
+.card-content i { margin-right: 8px; min-width: 16px; text-align: center; }
+.goal-link-indicator { display: inline-block; margin-right: 5px; cursor: help; font-size: 0.9em; }
+.icon-focus { color: var(--color-brand); }
+.icon-blocker { color: var(--color-warning); }
+.card-alert {
+    margin-top: 15px; padding: 10px 15px;
+    background-color: #fff3cd; color: #856404;
+    border-radius: var(--border-radius); display: flex; align-items: center; gap: 10px;
+}
+.card-alert.critical { background-color: #f8d7da; color: #721c24; animation: pulse 1.5s infinite; }
+.card-footer { margin-top: 20px; padding-top: 15px; border-top: 1px solid var(--color-border); display: flex; align-items: center; gap: 15px; }
+.kudos-button {
+    background: none; border: 1px solid var(--color-border); color: var(--color-text-secondary);
+    padding: 5px 12px; border-radius: 20px; cursor: pointer; transition: all 0.2s ease;
+    display: flex; align-items: center; gap: 8px;
+}
+.kudos-button:hover { border-color: var(--color-kudos); color: var(--color-kudos); }
+.kudos-button.given { background-color: var(--color-kudos); border-color: var(--color-kudos); color: white; font-weight: 500; }
+.kudos-button:disabled { opacity: 0.5; cursor: not-allowed; }
+.kudos-display { color: var(--color-text-secondary); font-size: 0.9rem; display: flex; align-items: center; gap: 5px; }
+.kudos-icon-given { color: var(--color-kudos); }
+.card-footer .btn-delete { margin-left: auto; }
+.summary-card p { font-size: 1rem; }
+.summary-card ul { padding-left: 20px; margin-top: 10px; }
+.summary-card li { margin-bottom: 5px; color: var(--color-text-secondary); }
+.critical-alerts { color: var(--color-danger); font-weight: 600; }
+.no-blockers { color: var(--color-text-secondary); }
+
+@keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.4); }
+    70% { box-shadow: 0 0 0 10px rgba(220, 53, 69, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0); }
+}

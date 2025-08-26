@@ -1,0 +1,63 @@
+/* Estilos específicos da página de Resumo Diário */
+.summary-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    gap: 24px;
+}
+
+.summary-card .el-card__header {
+    font-family: var(--font-display);
+    font-size: 1.2rem;
+    font-weight: 600;
+}
+
+.summary-card .el-card__body {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.stats-container {
+    display: flex;
+    gap: 24px;
+    text-align: center;
+}
+
+.stat-item {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    text-align: left;
+}
+
+.stat-item i {
+    font-size: 1.5rem;
+    color: var(--color-text-secondary);
+}
+
+.stat-value {
+    font-size: 2.25rem;
+    font-weight: 700;
+    font-family: var(--font-display);
+    line-height: 1.1;
+}
+
+.stat-label {
+    font-size: 0.9rem;
+    color: var(--color-text-secondary);
+}
+
+.critical-alerts {
+    color: var(--color-danger) !important;
+}
+
+.no-blockers {
+    color: var(--color-text-secondary);
+    font-style: italic;
+    font-size: 0.9rem;
+}
+
+.el-timeline {
+    padding-left: 5px;
+}
