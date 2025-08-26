@@ -76,7 +76,7 @@ const Dashboard = {
                     </el-form-item>
                     <el-form-item label="O que está te impedindo de progredir?">
                         <el-input v-model="newCheckin.blockers" type="textarea" :rows="3" placeholder="Ex: Aguardando dados do financeiro, sistema CRM instável..." required />
-                    </el--form-item>
+                    </el-form-item>
                      <el-form-item label="Algum aviso ou ponto de atenção para a equipe? (Opcional)">
                         <el-input v-model="newCheckin.alerts" placeholder="Ex: O prazo do projeto X termina hoje!, O servidor ficará offline às 15h." />
                     </el-form-item>
@@ -223,4 +223,4 @@ const Dashboard = {
             ElementPlus.ElMessage.error('Não foi possível carregar os dados do dashboard.');
         }
     }
-};
+}

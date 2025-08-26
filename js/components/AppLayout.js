@@ -1,6 +1,6 @@
 import TheSidebar from './TheSidebar.js';
 
-export default {
+const AppLayout = {
     components: {
         TheSidebar
     },

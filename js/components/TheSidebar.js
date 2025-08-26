@@ -1,13 +1,14 @@
 const TheSidebar = {
-    props: ['user', 'isAdmin'],
+    props: ['user', 'isAdmin', 'isMobile'],
+    emits: ['closeDrawer'],
     template: `
-        <el-aside width="260px" class="sidebar">
+        <el-aside width="260px" class="sidebar-container">
             <div>
                 <div class="sidebar-header">
                     <i class="fa-solid fa-square-poll-vertical"></i>
                     <h1>PulseBoard</h1>
                 </div>
-                <el-menu :default-active="$route.path" router>
+                <el-menu :default-active="$route.path" router @select="isMobile ? $emit('closeDrawer') : null">
                     <el-menu-item index="/dashboard"><i class="fa-solid fa-border-all"></i><span>Dashboard</span></el-menu-item>
                     <el-menu-item index="/resumo"><i class="fa-solid fa-chart-line"></i><span>Resumo Diário</span></el-menu-item>
                     <el-menu-item index="/analytics" v-if="isAdmin"><i class="fa-solid fa-chart-simple"></i><span>Analytics</span></el-menu-item>
