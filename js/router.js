@@ -1,5 +1,6 @@
 const routes = [
     { path: '/login', component: Login },
+    { path: '/register', component: Register }, // ROTA ADICIONADA
     { path: '/dashboard', component: Dashboard, meta: { requiresAuth: true } },
     { path: '/resumo', component: Resumo, meta: { requiresAuth: true } },
     { path: '/admin', component: Admin, meta: { requiresAuth: true } },
@@ -18,7 +19,8 @@ router.beforeEach((to, from, next) => {
     const requiresAuth = to.matched.some(record => record.meta.requiresAuth);
     if (requiresAuth && !isAuthenticated) {
         next('/login');
-    } else if (to.path === '/login' && isAuthenticated) {
+    } else if ((to.path === '/login' || to.path === '/register') && isAuthenticated) {
+        // Se já estiver logado, não pode acessar login nem register
         next('/dashboard');
     } else {
         next();
