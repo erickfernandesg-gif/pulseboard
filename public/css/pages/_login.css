@@ -1,0 +1,10 @@
+.login-layout { display: flex; justify-content: center; align-items: center; height: 100vh; }
+.login-container { width: 100%; max-width: 420px; text-align: center; padding: 20px; }
+.login-container .subtitle { color: var(--color-text-secondary); margin-bottom: 32px; }
+.login-container .input-group { margin-bottom: 16px; position: relative; }
+.login-container .input-group i { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: var(--color-text-secondary); }
+.login-container .input-group input { padding-left: 40px; width: 100%; }
+.login-container .btn { width: 100%; margin-top: 8px; }
+.login-container .btn-secondary { background-color: var(--color-bg-content); }
+.divider { margin: 25px 0; color: var(--color-text-secondary); }
+.error-message { color: var(--color-danger); margin-top: 16px; height: 20px; }
