@@ -1,5 +1,7 @@
 {
   "projects": {
     "default": "pulseboard-55ac6"
-  }
+  },
+  "targets": {},
+  "etags": {}
 }

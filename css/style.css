@@ -78,3 +78,10 @@ h1, h2, h3, h4 { font-family: var(--font-display); }
 .footer-text a:hover {
     text-decoration: underline;
 }
+.team-color-dot {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%; /* Deixa o quadrado redondo */
+  vertical-align: middle; /* Alinha no meio da célula */
+}

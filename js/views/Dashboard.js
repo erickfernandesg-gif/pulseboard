@@ -109,7 +109,7 @@ const Dashboard = {
     `,
     data() {
         return {
-            user: { uid: null, name: 'Carregando...', teamId: null },
+            user: { uid: null, name: 'Carregando...', teamId: null, organizationId: null },
             isAdmin: false,
             loading: true,
             teams: {},
@@ -152,7 +152,13 @@ const Dashboard = {
         async addGoal() {
             if (this.newGoalText.trim() === '') return;
             if (this.userGoals.length >= 3) { ElementPlus.ElMessage.warning('Você pode definir no máximo 3 metas por semana.'); return; }
-            const newGoal = { userId: this.user.uid, goalText: this.newGoalText, weekId: this.getWeekId(new Date()), createdAt: firebase.firestore.FieldValue.serverTimestamp() };
+            const newGoal = {
+                userId: this.user.uid,
+                goalText: this.newGoalText,
+                weekId: this.getWeekId(new Date()),
+                organizationId: this.user.organizationId, // <-- CARIMBO ADICIONADO
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            };
             await this.db.collection('goals').add(newGoal);
             this.newGoalText = '';
             await this.fetchUserGoals();
@@ -192,7 +198,16 @@ const Dashboard = {
         setMood(mood) { this.newCheckin.mood = mood; },
         async submitCheckin() {
             if (!this.newCheckin.focus || !this.newCheckin.blockers) return;
-            await this.db.collection('checkins').add({ userId: this.user.uid, userName: this.user.name, teamId: this.user.teamId, ...this.newCheckin, kudos: [], timestamp: firebase.firestore.FieldValue.serverTimestamp() });
+            const checkinData = {
+                ...this.newCheckin,
+                userId: this.user.uid,
+                userName: this.user.name,
+                teamId: this.user.teamId,
+                organizationId: this.user.organizationId, // <-- CARIMBO ADICIONADO
+                kudos: [],
+                timestamp: firebase.firestore.FieldValue.serverTimestamp()
+            };
+            await this.db.collection('checkins').add(checkinData);
             this.closeCheckinModal();
             this.newCheckin = { focus: '', blockers: '', alerts: '', mood: 'neutral', linkedGoalId: '' };
             ElementPlus.ElNotification({ title: 'Sucesso', message: 'Seu check-in foi registrado.', type: 'success', position: 'bottom-right' });
@@ -211,7 +226,7 @@ const Dashboard = {
                 const userDoc = await this.db.collection('users').doc(firebaseUser.uid).get();
                 if (userDoc.exists) {
                     this.user = { uid: firebaseUser.uid, ...userDoc.data() };
-                    this.isAdmin = this.user.isAdmin === true;
+                    this.isAdmin = this.user.isSuperAdmin === true || this.user.role === 'admin' || this.user.role === 'team_lead';
                     await Promise.all([this.fetchTeams(), this.fetchUserGoals()]);
                     this.loadCheckins();
                 } else {

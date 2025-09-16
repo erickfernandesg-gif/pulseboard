@@ -13,7 +13,7 @@ const Register = {
                     <el-result
                         icon="success"
                         title="Solicitação Enviada!"
-                        sub-title="Obrigado pelo seu interesse! Recebemos seus dados e nossa equipe irá analisar seu cadastro. Entraremos em contato em breve."
+                        sub-title="Sua conta foi criada e está aguardando a aprovação de um administrador. Entraremos em contato em breve quando seu acesso for liberado."
                     >
                         <template #extra>
                             <el-button type="primary" @click="$router.push('/login')">Voltar para o Login</el-button>
@@ -30,12 +30,17 @@ const Register = {
                         <el-form-item label="Seu Nome Completo">
                             <el-input v-model="form.userName" placeholder="Digite seu nome" size="large" />
                         </el-form-item>
-                        <el-form-item label="Seu E-mail de Contato">
+                        <el-form-item label="Seu E-mail de Acesso">
                             <el-input v-model="form.email" type="email" placeholder="seu.email@empresa.com" size="large" />
                         </el-form-item>
+                        
+                        <el-form-item label="Crie uma Senha">
+                            <el-input v-model="form.password" type="password" placeholder="Mínimo 6 caracteres" size="large" show-password />
+                        </el-form-item>
+
                         <el-form-item>
                             <el-button type="primary" native-type="submit" class="btn-login" size="large" :loading="loading">
-                                Enviar Solicitação
+                                Criar Conta
                             </el-button>
                         </el-form-item>
                     </el-form>
@@ -50,33 +55,60 @@ const Register = {
             form: {
                 companyName: '',
                 userName: '',
-                email: ''
+                email: '',
+                password: '' // <- Adicionado
             },
             loading: false,
             formSubmitted: false,
-            db: firebase.firestore()
+            db: firebase.firestore(),
+            auth: firebase.auth()
         }
     },
     methods: {
+        // MÉTODO COMPLETAMENTE REESCRITO
         async submitRegistration() {
-            if (!this.form.companyName || !this.form.userName || !this.form.email) {
+            // 1. Validação simples para garantir que todos os campos foram preenchidos
+            if (!this.form.companyName || !this.form.userName || !this.form.email || !this.form.password) {
                 ElementPlus.ElMessage.error('Por favor, preencha todos os campos.');
                 return;
             }
             this.loading = true;
+
             try {
-                // Salva a solicitação em uma nova coleção no Firestore
-                await this.db.collection('registrationRequests').add({
-                    companyName: this.form.companyName,
-                    userName: this.form.userName,
-                    email: this.form.email,
-                    status: 'pending', // Status inicial
-                    requestedAt: firebase.firestore.FieldValue.serverTimestamp()
+                // 2. Cria o usuário no Firebase Authentication (com e-mail e senha)
+                const userCredential = await this.auth.createUserWithEmailAndPassword(this.form.email, this.form.password);
+                const newUser = userCredential.user;
+
+                // 3. Cria a Organização no Firestore com status "pending"
+                const orgRef = await this.db.collection('organizations').add({
+                    name: this.form.companyName,
+                    ownerId: newUser.uid,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    status: 'pending' // <- O status que você sugeriu!
                 });
+
+                // 4. Cria o perfil do usuário no Firestore, ligando ele à organização
+                await this.db.collection('users').doc(newUser.uid).set({
+                    name: this.form.userName,
+                    email: this.form.email,
+                    organizationId: orgRef.id, // Liga o usuário à organização criada
+                    isAdmin: true, // O primeiro usuário da empresa é um admin
+                    teamId: ''
+                });
+
+                // 5. Mostra a tela de sucesso
                 this.formSubmitted = true;
+
             } catch (error) {
-                console.error("Erro ao enviar solicitação:", error);
-                ElementPlus.ElMessage.error('Ocorreu um erro. Tente novamente.');
+                console.error("Erro ao registrar:", error);
+                // Trata erros comuns do Firebase para dar uma resposta melhor
+                if (error.code === 'auth/email-already-in-use') {
+                    ElementPlus.ElMessage.error('Este e-mail já está cadastrado.');
+                } else if (error.code === 'auth/weak-password') {
+                    ElementPlus.ElMessage.error('A senha precisa ter pelo menos 6 caracteres.');
+                } else {
+                    ElementPlus.ElMessage.error('Ocorreu um erro. Tente novamente.');
+                }
             } finally {
                 this.loading = false;
             }
