@@ -45,12 +45,11 @@ const App = {
 
         <router-view v-else></router-view>
     `,
+    props: ['userProfile'], // Recebe o perfil do main.js
     data() {
         return {
             isAuthenticated: false,
-            userProfile: {},
             drawerOpen: false,
-            db: firebase.firestore()
         }
     },
     computed: {
@@ -59,15 +58,9 @@ const App = {
     methods: {
         logout() { firebase.auth().signOut().then(() => { this.$router.push('/login'); }); }
     },
-    created() {
-        firebase.auth().onAuthStateChanged(async (user) => {
-            this.isAuthenticated = !!user;
-            if (user) {
-                const userDoc = await this.db.collection('users').doc(user.uid).get();
-                if (userDoc.exists) {
-                    this.userProfile = { uid: user.uid, ...userDoc.data() };
-                }
-            }
-        });
+    mounted() {
+        // A autenticação agora é controlada pelo onAuthStateChanged no main.js
+        // e o perfil é passado como prop.
+        this.isAuthenticated = !!this.userProfile;
     }
 };

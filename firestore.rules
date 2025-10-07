@@ -1,0 +1,77 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // --- FUNÇÕES HELPER ---
+    function isSuperAdmin() {
+      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isSuperAdmin == true;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function currentUserProfile() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isMemberOf(orgId) {
+      return isSignedIn() && currentUserProfile().organizationId == orgId;
+    }
+
+    // --- REGRAS POR COLEÇÃO ---
+
+    match /organizations/{orgId} {
+      // Permite que um usuário autenticado crie uma organização para si mesmo.
+      allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid;
+
+      // Permite que um Super Admin liste todas as organizações.
+      allow list: if isSuperAdmin();
+
+      // Permite que membros da organização ou um Super Admin leiam (get), atualizem ou deletem um documento específico.
+      allow get, update, delete: if isSuperAdmin() || isMemberOf(orgId);
+    }
+    
+    match /users/{userId} {
+      // Permite que um usuário crie seu próprio perfil.
+      allow create: if isSignedIn() && request.auth.uid == userId;
+
+      // Permite que um usuário leia/atualize seu PRÓPRIO perfil.
+      allow get, update: if request.auth.uid == userId;
+
+      // Permite que um Super Admin leia QUALQUER perfil (necessário para o painel admin).
+      allow get: if isSuperAdmin();
+      
+      // Permite que apenas um Super Admin liste os usuários.
+      allow list: if isSuperAdmin(); 
+    }
+    
+    match /teams/{teamId} {
+        // Permite a leitura por membros da organização ou Super Admin.
+        allow read: if isSuperAdmin() || isMemberOf(resource.data.organizationId);
+        // Permite a escrita (criar/editar/deletar) por admins da organização ou Super Admin.
+        allow write: if isSuperAdmin() || (isMemberOf(request.resource.data.organizationId) && currentUserProfile().role == 'admin');
+    }
+
+    match /checkins/{checkinId} {
+        // Permite a leitura e criação por membros da organização.
+        allow read, create: if isMemberOf(resource.data.organizationId);
+        // Permite a atualização (ex: dar kudos) por qualquer membro da organização.
+        allow update: if isMemberOf(resource.data.organizationId);
+        // Permite a exclusão pelo próprio usuário, um admin da org, um líder de equipe ou um Super Admin.
+        allow delete: if isSuperAdmin() || (isMemberOf(resource.data.organizationId) && (resource.data.userId == request.auth.uid || currentUserProfile().role == 'admin' || currentUserProfile().role == 'team_lead'));
+
+        // Regra para a subcoleção de comentários
+        match /comments/{commentId} {
+            allow read, create: if isMemberOf(get(/databases/$(database)/documents/checkins/$(checkinId)).data.organizationId);
+        }
+    }
+
+    match /goals/{goalId} {
+      // Permite que um usuário crie, leia, atualize e delete suas próprias metas.
+      allow read, write: if isSignedIn() && resource.data.userId == request.auth.uid;
+      // Permite a criação de uma meta para si mesmo.
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+    }
+  }
+}
