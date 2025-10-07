@@ -53,11 +53,17 @@ const Resumo = {
             summaryData: {},
             pageTitle: 'Resumo do Dia',
             db: firebase.firestore(),
+            auth: firebase.auth(),
+            user: null,
         }
     },
     methods: {
         async fetchTeams() {
-            const snapshot = await this.db.collection('teams').get();
+            if (!this.user || !this.user.organizationId) return;
+            const snapshot = await this.db.collection('teams')
+                .where('organizationId', '==', this.user.organizationId)
+                .get();
+
             let teamsData = {};
             snapshot.forEach(doc => {
                 teamsData[doc.id] = doc.data();
@@ -66,6 +72,11 @@ const Resumo = {
         },
         async loadDailySummary() {
             this.loading = true;
+            if (!this.user || !this.user.organizationId) {
+                this.loading = false;
+                return;
+            }
+
             const today = new Date();
             this.pageTitle = `Resumo do Dia – ${today.toLocaleDateString('pt-BR')}`;
             today.setHours(0, 0, 0, 0);
@@ -73,6 +84,7 @@ const Resumo = {
             tomorrow.setDate(tomorrow.getDate() + 1);
 
             const snapshot = await this.db.collection('checkins')
+                .where('organizationId', '==', this.user.organizationId)
                 .where('timestamp', '>=', today)
                 .where('timestamp', '<', tomorrow)
                 .get();
@@ -101,7 +113,21 @@ const Resumo = {
         },
     },
     async mounted() {
-        await this.fetchTeams();
-        await this.loadDailySummary();
+        this.loading = true;
+        try {
+            const firebaseUser = this.auth.currentUser;
+            if (!firebaseUser) { this.loading = false; return; }
+            const userDoc = await this.db.collection('users').doc(firebaseUser.uid).get();
+            if (userDoc.exists) {
+                this.user = { uid: firebaseUser.uid, ...userDoc.data() };
+                await this.fetchTeams();
+                await this.loadDailySummary();
+            } else {
+                console.error("User document not found in Firestore.");
+            }
+        } catch (error) {
+            console.error("Error loading summary data:", error);
+        }
+        this.loading = false;
     }
 }

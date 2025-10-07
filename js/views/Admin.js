@@ -247,9 +247,26 @@ const Admin = {
         async deleteTeam(teamId) {
             this.loading = true;
             try {
-                await this.db.collection('teams').doc(teamId).delete();
+                // Inicia um batch para garantir que ambas as operações (deletar time e atualizar usuários) ocorram juntas
+                const batch = this.db.batch();
+                
+                // 1. Adiciona a exclusão do time ao batch
+                const teamRef = this.db.collection('teams').doc(teamId);
+                batch.delete(teamRef);
+
+                // 2. Encontra todos os usuários no time e atualiza-os para não terem mais time
+                const usersToUpdate = this.users.filter(u => u.teamId === teamId);
+                usersToUpdate.forEach(user => {
+                    const userRef = this.db.collection('users').doc(user.id);
+                    batch.update(userRef, { teamId: '' });
+                });
+
+                // 3. Executa todas as operações no batch
+                await batch.commit();
+
                 ElementPlus.ElMessage.success('Time removido com sucesso.');
                 await this.fetchTeams(this.selectedOrganizationId);
+                await this.fetchUsers(this.selectedOrganizationId); // Recarrega os usuários para refletir a mudança
             } catch (error) {
                 console.error("Erro ao deletar time:", error);
                 ElementPlus.ElMessage.error('Ocorreu um erro ao remover o time.');

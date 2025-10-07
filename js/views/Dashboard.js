@@ -169,10 +169,16 @@ const Dashboard = {
             ElementPlus.ElMessage({ message: 'Meta removida!', type: 'success' });
         },
         getGoalText(goalId) { const goal = this.userGoals.find(g => g.id === goalId); return goal ? goal.goalText : 'Meta não encontrada'; },
-        async fetchTeams() { const snapshot = await this.db.collection('teams').get(); let teamsData = {}; snapshot.forEach(doc => { teamsData[doc.id] = doc.data(); }); this.teams = teamsData; },
+        async fetchTeams() { if (!this.user.organizationId) return; const snapshot = await this.db.collection('teams').where('organizationId', '==', this.user.organizationId).get(); let teamsData = {}; snapshot.forEach(doc => { teamsData[doc.id] = doc.data(); }); this.teams = teamsData; },
         loadCheckins() {
             if (this.unsubscribe) this.unsubscribe();
-            const query = this.db.collection('checkins').orderBy('timestamp', 'desc').limit(50);
+            if (!this.user.organizationId) {
+                this.loading = false;
+                return;
+            }
+            const query = this.db.collection('checkins')
+                .where('organizationId', '==', this.user.organizationId)
+                .orderBy('timestamp', 'desc').limit(50);
             this.unsubscribe = query.onSnapshot(snapshot => {
                 this.allCheckins = snapshot.docs.map(doc => {
                     const data = doc.data();

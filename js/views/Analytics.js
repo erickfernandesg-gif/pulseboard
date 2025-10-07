@@ -57,22 +57,32 @@ const Analytics ={
             kudosRanking: [],
             sentimentChart: null,
             db: firebase.firestore(),
+            auth: firebase.auth(),
+            user: null,
         }
     },
     methods: {
         async fetchAllUsers() {
-            const snapshot = await this.db.collection('users').get();
+            if (!this.user || !this.user.organizationId) return;
+            const snapshot = await this.db.collection('users')
+                .where('organizationId', '==', this.user.organizationId)
+                .get();
             snapshot.forEach(doc => {
                 this.allUsers[doc.id] = doc.data();
             });
         },
         async fetchData() {
             this.loading = true;
+            if (!this.user || !this.user.organizationId) {
+                this.loading = false;
+                return;
+            }
             const startDate = new Date();
             startDate.setDate(startDate.getDate() - this.timeRange);
             startDate.setHours(0, 0, 0, 0);
 
             const snapshot = await this.db.collection('checkins')
+                .where('organizationId', '==', this.user.organizationId)
                 .where('timestamp', '>=', startDate)
                 .get();
             
@@ -185,7 +195,24 @@ const Analytics ={
         },
     },
     async mounted() {
-        await this.fetchAllUsers();
-        await this.fetchData();
+        this.loading = true;
+        try {
+            const firebaseUser = this.auth.currentUser;
+            if (!firebaseUser) {
+                this.loading = false;
+                return;
+            }
+            const userDoc = await this.db.collection('users').doc(firebaseUser.uid).get();
+            if (userDoc.exists) {
+                this.user = { uid: firebaseUser.uid, ...userDoc.data() };
+                await this.fetchAllUsers();
+                await this.fetchData();
+            } else {
+                console.error("User document not found in Firestore.");
+            }
+        } catch (error) {
+            console.error("Error loading analytics data:", error);
+        }
+        this.loading = false;
     }
 }
