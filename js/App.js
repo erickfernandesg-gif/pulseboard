@@ -29,9 +29,12 @@ const App = {
             <el-drawer v-model="drawerOpen" title="Navegação" direction="ltr" size="280px">
                 <el-menu :default-active="$route.path" router @select="drawerOpen = false">
                     <el-menu-item index="/dashboard"><i class="fa-solid fa-border-all"></i><span>Dashboard</span></el-menu-item>
-                    <el-menu-item index="/resumo"><i class="fa-solid fa-chart-line"></i><span>Resumo Diário</span></el-menu-item>
-                    <el-menu-item index="/analytics" v-if="isAdmin"><i class="fa-solid fa-chart-simple"></i><span>Analytics</span></el-menu-item>
-                    <el-menu-item index="/admin" v-if="isAdmin"><i class="fa-solid fa-user-shield"></i><span>Admin</span></el-menu-item>
+                    <el-menu-item index="/resumo"><i class="fa-solid fa-chart-line"></i><span>Resumo Diário</span></el-menu-item>                    
+                    <!-- Link para o admin da empresa -->
+                    <el-menu-item index="/company-admin" v-if="userProfile.role === 'admin'"><i class="fa-solid fa-building-user"></i><span>Gerenciar Empresa</span></el-menu-item>
+                    <el-menu-item index="/analytics" v-if="userProfile.isSuperAdmin || userProfile.role === 'admin'"><i class="fa-solid fa-chart-simple"></i><span>Analytics</span></el-menu-item>
+                    <!-- Link apenas para Super Admin -->
+                    <el-menu-item index="/admin" v-if="userProfile.isSuperAdmin"><i class="fa-solid fa-user-shield"></i><span>Admin Geral</span></el-menu-item>
                 </el-menu>
             </el-drawer>
 
@@ -46,7 +49,6 @@ const App = {
         return {
             isAuthenticated: false,
             userProfile: {},
-            isAdmin: false,
             drawerOpen: false,
             db: firebase.firestore()
         }
@@ -63,8 +65,7 @@ const App = {
             if (user) {
                 const userDoc = await this.db.collection('users').doc(user.uid).get();
                 if (userDoc.exists) {
-                    this.userProfile = userDoc.data();
-                    this.isAdmin = this.userProfile.isAdmin === true;
+                    this.userProfile = { uid: user.uid, ...userDoc.data() };
                 }
             }
         });

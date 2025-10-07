@@ -44,15 +44,30 @@ const Dashboard = {
                     </div>
                     
                     <div class="card-footer">
-                        <el-button @click="giveKudos(checkin.id)" :type="hasGivenKudos(checkin) ? 'success' : ''" round :disabled="isMyCheckin(checkin)">
-                            <i class="fa-solid fa-hands-clapping"></i>&nbsp;
-                            <span>{{ hasGivenKudos(checkin) ? 'Aplaudiu!' : 'Aplaudir' }}</span>
-                        </el-button>
+                        <div>
+                            <el-button @click="giveKudos(checkin.id)" :type="hasGivenKudos(checkin) ? 'success' : ''" round :disabled="isMyCheckin(checkin)">
+                                <i class="fa-solid fa-hands-clapping"></i>&nbsp;
+                                <span>{{ hasGivenKudos(checkin) ? 'Aplaudiu!' : 'Aplaudir' }}</span>
+                            </el-button>
+                            <el-button @click="toggleComments(checkin)" round>
+                                <i class="fa-regular fa-comment"></i>&nbsp;
+                                <span>Comentar</span>
+                                <el-badge :value="checkin.commentCount" class="comment-badge" v-if="checkin.commentCount > 0" />
+                            </el-button>
+                        </div>
                         <div class="kudos-display" v-if="checkin.kudos && checkin.kudos.length > 0">
                             <i class="fa-solid fa-hands-clapping kudos-icon-given"></i>
                             <span>{{ checkin.kudos.length }}</span>
                         </div>
                         <el-button v-if="isAdmin" @click="confirmDeleteCheckin(checkin.id)" type="danger" :icon="'Delete'" circle plain title="Excluir Check-in" />
+                    </div>
+
+                    <div v-if="checkin.showComments" class="comments-section" v-loading="checkin.commentsLoading">
+                        <div v-for="comment in checkin.comments" class="comment-item">
+                            <p><strong>{{ comment.userName }}:</strong> {{ comment.text }}</p>
+                            <small>{{ formatTimestamp(comment.timestamp) }}</small>
+                        </div>
+                        <el-input v-model="checkin.newComment" @keyup.enter="addComment(checkin)" placeholder="Escreva um comentário..." clearable><template #append><el-button @click="addComment(checkin)" :icon="'Position'" /></template></el-input>
                     </div>
                 </el-card>
             </div>
@@ -182,7 +197,16 @@ const Dashboard = {
             this.unsubscribe = query.onSnapshot(snapshot => {
                 this.allCheckins = snapshot.docs.map(doc => {
                     const data = doc.data();
-                    return { id: doc.id, kudos: [], ...data };
+                    return { 
+                        id: doc.id, 
+                        kudos: [], 
+                        ...data,
+                        showComments: false,      // Estado para UI
+                        comments: [],             // Array para guardar comentários carregados
+                        commentsLoading: false,   // Estado de loading por card
+                        newComment: '',           // Input de novo comentário por card
+                        commentCount: data.commentCount || 0 // Contagem de comentários
+                    };
                 });
                 this.loading = false;
             }, error => {
@@ -223,7 +247,45 @@ const Dashboard = {
         isMyCheckin(checkin) { return checkin.userId === this.user.uid; },
         getMoodIcon(mood) { const icons = { happy: '😊', neutral: '🙂', sad: '😟' }; return icons[mood] || ''; },
         formatTimestamp(ts) { if (!ts) return ''; return ts.toDate().toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }); },
-        isCritical(alerts) { if (!alerts) return false; return ['crítico', 'urgente', 'bloqueio total', '⚠️'].some(keyword => alerts.toLowerCase().includes(keyword)); }
+        isCritical(alerts) { if (!alerts) return false; return ['crítico', 'urgente', 'bloqueio total', '⚠️'].some(keyword => alerts.toLowerCase().includes(keyword)); },
+        
+        // --- NOVOS MÉTODOS PARA COMENTÁRIOS ---
+        async toggleComments(checkin) {
+            checkin.showComments = !checkin.showComments;
+            // Carrega os comentários apenas na primeira vez que o usuário abre a seção
+            if (checkin.showComments && checkin.comments.length === 0) {
+                checkin.commentsLoading = true;
+                try {
+                    const commentsSnapshot = await this.db.collection('checkins').doc(checkin.id).collection('comments').orderBy('timestamp', 'asc').get();
+                    checkin.comments = commentsSnapshot.docs.map(doc => doc.data());
+                } catch (error) {
+                    console.error("Erro ao buscar comentários:", error);
+                    ElementPlus.ElMessage.error("Não foi possível carregar os comentários.");
+                } finally {
+                    checkin.commentsLoading = false;
+                }
+            }
+        },
+        async addComment(checkin) {
+            const text = checkin.newComment.trim();
+            if (!text) return;
+
+            const commentData = {
+                text: text,
+                userId: this.user.uid,
+                userName: this.user.name,
+                timestamp: firebase.firestore.FieldValue.serverTimestamp()
+            };
+
+            const checkinRef = this.db.collection('checkins').doc(checkin.id);
+            await checkinRef.collection('comments').add(commentData);
+            
+            // Atualiza a contagem de comentários no check-in principal e adiciona o comentário localmente
+            checkin.comments.push({ ...commentData, timestamp: { toDate: () => new Date() } }); // Simula o timestamp para UI
+            checkin.commentCount++;
+            checkin.newComment = ''; // Limpa o campo
+            await checkinRef.update({ commentCount: firebase.firestore.FieldValue.increment(1) });
+        }
     },
     async mounted() {
         try {

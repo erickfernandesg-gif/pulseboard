@@ -10,24 +10,19 @@ const Admin = {
                     <template #header>
                         <div class="card-header-title">
                             <h2>Visão Geral das Empresas</h2>
+                            <el-input v-model="orgSearch" placeholder="Buscar empresa..." :prefix-icon="'Search'" clearable style="width: 300px; margin-left: auto;" />
                         </div>
                     </template>
-                    <div class="company-filter">
-                        <el-select 
-                            v-model="selectedOrganizationId" 
-                            placeholder="Selecione uma empresa para gerenciar" 
-                            @change="onOrganizationChange"
-                            filterable 
-                            clearable
-                            style="width: 100%;">
-                            <el-option 
-                                v-for="org in activeOrganizations" 
-                                :key="org.id" 
-                                :label="org.name" 
-                                :value="org.id">
-                            </el-option>
-                        </el-select>
-                    </div>
+                    <el-table :data="filteredActiveOrganizations" stripe style="width: 100%">
+                        <el-table-column prop="name" label="Empresa" sortable></el-table-column>
+                        <el-table-column prop="ownerName" label="Proprietário"></el-table-column>
+                        <el-table-column label="Ações" width="180" align="right">
+                            <template #default="scope">
+                                <el-button @click="selectOrganization(scope.row.id)" type="primary" plain :icon="'Setting'">Gerenciar</el-button>
+                                <el-button @click="confirmDeleteOrganization(scope.row)" type="danger" :icon="'Delete'" circle plain title="Excluir Empresa" />
+                            </template>
+                        </el-table-column>
+                    </el-table>
                 </el-card>
 
                 <el-card class="admin-section">
@@ -108,6 +103,7 @@ const Admin = {
             pendingOrganizations: [],
             activeOrganizations: [],
             selectedOrganizationId: '',
+            orgSearch: '',
             teams: [],
             users: [],
             showTeamDialog: false,
@@ -119,20 +115,24 @@ const Admin = {
                 { value: 'team_lead', label: 'Líder de Equipe' },
                 { value: 'admin', label: 'Admin' }
             ],
-            currentUser: null
+            currentUser: null,
         }
     },
     computed: {
         teamsAsArray() {
             return this.teams;
+        },
+        filteredActiveOrganizations() {
+            if (!this.orgSearch) {
+                return this.activeOrganizations;
+            }
+            const term = this.orgSearch.toLowerCase();
+            return this.activeOrganizations.filter(org => org.name.toLowerCase().includes(term));
         }
     },
     methods: {
-        async fetchAllActiveOrganizations() {
-            const snapshot = await this.db.collection('organizations').where('status', '==', 'active').orderBy('name').get();
-            this.activeOrganizations = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        },
-        async onOrganizationChange(orgId) {
+        async selectOrganization(orgId) {
+            this.selectedOrganizationId = orgId;
             if (orgId) {
                 this.loading = true;
                 await Promise.all([
@@ -143,6 +143,58 @@ const Admin = {
             } else {
                 this.teams = [];
                 this.users = [];
+            }
+        },
+        confirmDeleteOrganization(org) {
+            ElementPlus.ElMessageBox.confirm(
+                `Esta ação é irreversível e excluirá permanentemente a empresa <strong>${org.name}</strong>, incluindo todos os seus usuários, times e check-ins.`,
+                'Você tem certeza absoluta?',
+                {
+                    confirmButtonText: 'Sim, excluir tudo!',
+                    cancelButtonText: 'Cancelar',
+                    type: 'warning',
+                    dangerouslyUseHTMLString: true
+                }
+            ).then(() => {
+                this.deleteOrganization(org.id);
+            }).catch(() => {});
+        },
+        async deleteOrganization(organizationId) {
+            this.loading = true;
+            try {
+                // Exclusão client-side, sem Cloud Function
+                const collectionsToDelete = ['users', 'teams', 'goals', 'checkins'];
+                for (const collectionName of collectionsToDelete) {
+                    const snapshot = await this.db.collection(collectionName).where('organizationId', '==', organizationId).get();
+                    if (!snapshot.empty) {
+                        const batch = this.db.batch();
+                        snapshot.docs.forEach(doc => {
+                            batch.delete(doc.ref);
+                        });
+                        await batch.commit();
+                    }
+                }
+
+                // Por último, exclui o documento da organização
+                await this.db.collection('organizations').doc(organizationId).delete();
+
+                ElementPlus.ElNotification({ 
+                    title: 'Sucesso Parcial', 
+                    message: 'Todos os dados da empresa foram removidos do banco de dados. Os usuários agora precisam ser removidos manualmente da aba "Authentication" no console do Firebase.', 
+                    type: 'warning',
+                    duration: 0 // Fica na tela até ser fechado
+                });
+
+                // Atualiza as listas na tela
+                await this.fetchAllActiveOrganizations();
+                if (this.selectedOrganizationId === organizationId) {
+                    this.selectedOrganizationId = '';
+                }
+            } catch (error) {
+                console.error("Erro ao excluir organização:", error);
+                ElementPlus.ElMessage.error(`Erro ao excluir dados: ${error.message}`);
+            } finally {
+                this.loading = false;
             }
         },
         getSelectedOrgName() {
@@ -196,12 +248,22 @@ const Admin = {
             }
         },
         async fetchPendingOrganizations() {
-            const orgSnapshot = await this.db.collection('organizations').where('status', '==', 'pending').get();
+            const orgSnapshot = await this.db.collection('organizations').where('status', '==', 'pending').orderBy('createdAt', 'desc').get();
             if (orgSnapshot.empty) { this.pendingOrganizations = []; return; }
             const orgsData = await Promise.all(orgSnapshot.docs.map(async (doc) => {
                 const org = { id: doc.id, ...doc.data() };
                 const userDoc = await this.db.collection('users').doc(org.ownerId).get();
                 if (userDoc.exists) { org.ownerName = userDoc.data().name; org.ownerEmail = userDoc.data().email; }
+                return org;
+            }));
+            this.pendingOrganizations = orgsData;
+        },
+        async fetchAllActiveOrganizations() {
+            const orgSnapshot = await this.db.collection('organizations').where('status', '==', 'active').orderBy('name').get();
+            const orgsData = await Promise.all(orgSnapshot.docs.map(async (doc) => {
+                const org = { id: doc.id, ...doc.data() };
+                const userDoc = await this.db.collection('users').doc(org.ownerId).get();
+                if (userDoc.exists) { org.ownerName = userDoc.data().name; }
                 return org;
             }));
             this.pendingOrganizations = orgsData;

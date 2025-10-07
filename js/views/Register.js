@@ -92,8 +92,8 @@ const Register = {
                     name: this.form.userName,
                     email: this.form.email,
                     organizationId: orgRef.id, // Liga o usuário à organização criada
-                    isAdmin: true, // O primeiro usuário da empresa é um admin
-                    teamId: ''
+                    role: 'admin', // O primeiro usuário da empresa é um admin
+                    teamId: '',
                 });
 
                 // 5. Mostra a tela de sucesso

@@ -187,7 +187,7 @@ const Analytics ={
             this.kudosRanking = Object.entries(kudosCounts)
                 .map(([userId, kudosCount]) => ({
                     userId,
-                    kudosCount,
+                    kudosCount: kudosCount,
                     name: this.allUsers[userId]?.name || 'Usuário Desconhecido'
                 }))
                 .sort((a, b) => b.kudosCount - a.kudosCount)
@@ -195,11 +195,9 @@ const Analytics ={
         },
     },
     async mounted() {
-        this.loading = true;
         try {
             const firebaseUser = this.auth.currentUser;
             if (!firebaseUser) {
-                this.loading = false;
                 return;
             }
             const userDoc = await this.db.collection('users').doc(firebaseUser.uid).get();
@@ -211,8 +209,10 @@ const Analytics ={
                 console.error("User document not found in Firestore.");
             }
         } catch (error) {
-            console.error("Error loading analytics data:", error);
+            console.error("Erro ao carregar dados de analytics:", error);
+            ElementPlus.ElMessage.error("Não foi possível carregar os dados de analytics.");
+        } finally {
+            this.loading = false;
         }
-        this.loading = false;
     }
 }
